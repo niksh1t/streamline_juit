@@ -1,0 +1,159 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // ✨ 1. Import Provider
+import '/screens/captcha_screen.dart';
+import '../data/providers/captcha_provider.dart'; // ✨ 2. Import your provider
+import '../data/services/secure_storage_service.dart';
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _storageService = SecureStorageService();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCredentials(); // ✨ 3. Load saved credentials when the screen starts
+  }
+
+  // ✨ 4. New function to load credentials if "Remember Me" was checked
+  void _loadCredentials() async {
+    final credentials = await _storageService.getCredentials();
+    if (credentials['username'] != null && credentials['username']!.isNotEmpty) {
+      setState(() {
+        _usernameController.text = credentials['username']!;
+        _passwordController.text = credentials['password']!;
+        _rememberMe = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12.0, 100, 12, 0),
+          child: SingleChildScrollView( // ✨ Added to prevent overflow on small screens
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // --- The "Welcome Back" Row ---
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome Back',
+                          style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Sign in to continue',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(
+                      width: 60,
+                      height: 60,
+                      child: Image.asset('assets/tuturu.png', fit: BoxFit.contain),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 48),
+                TextFormField(
+                  controller: _usernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Roll Number',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                  obscureText: true,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Remember Me'),
+                  value: _rememberMe,
+                  onChanged: (bool value) {
+                    setState(() {
+                      _rememberMe = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _login,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  child: const Text('LOGIN'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ✨ 5. Fully updated login logic
+  void _login() async {
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
+
+    // Basic validation
+    if (username.isEmpty || password.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please fill out all fields.')),
+        );
+        return;
+    }
+
+    // Save or delete credentials based on "Remember Me"
+    if (_rememberMe) {
+      await _storageService.saveCredentials(username, password);
+    } else {
+      // Use deleteAll to clear token as well upon explicit uncheck
+      await _storageService.deleteAll();
+    }
+    
+    // Trigger the initial captcha fetch *before* navigating.
+    // context.read is used to call a function on a provider without listening for changes.
+    context.read<CaptchaProvider>().fetchCaptcha();
+
+    // Navigate to the CaptchaScreen and pass the credentials
+    if (mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => CaptchaScreen(
+            username: username,
+            password: password,
+          ),
+        ),
+      );
+    }
+  }
+}
