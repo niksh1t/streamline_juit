@@ -5,15 +5,30 @@ import 'package:http/http.dart' as http;
 import 'crypto_service.dart';
 import 'preferences_service.dart';
 
+// Custom exception for clear error handling in the UI
+class InvalidCredentialsException implements Exception {
+  final String message;
+  InvalidCredentialsException(this.message);
+
+  @override
+  String toString() => message;
+}
+class InvalidCaptchaException implements Exception{
+  final String message; 
+  InvalidCaptchaException(this.message); 
+  
+  @override
+  String toString() => message; 
+}
+
 class AuthService {
   final String _baseUrl = "https://webportal.juit.ac.in:6011/StudentPortalAPI";
   final CryptoService _cryptoService = CryptoService();
   final PreferencesService _prefsService;
 
-  // ✨ 2. INITIALIZE IN THE CONSTRUCTOR
-  // This was also missing. It allows you to pass in the service when you create AuthService.
   AuthService(this._prefsService);
-  // STEP 1: Get Captcha
+
+  // No changes needed in getCaptcha or login methods...
   Future<Map<String, String>> getCaptcha() async {
     if (kDebugMode) {
       print("\n--- 🏁 STEP 1: GETTING CAPTCHA ---");
@@ -30,18 +45,9 @@ class AuthService {
     if (kDebugMode) {
       print("🌐 Requesting URL: $uri");
     }
-    if (kDebugMode) {
-      print("📋 Request Headers: $headers");
-    }
 
     final response = await http.get(uri, headers: headers);
-    if (kDebugMode) {
-      print("🚦 Response Status Code: ${response.statusCode}");
-    }
-    if (kDebugMode) {
-      print("📦 Response Body: ${response.body}");
-    }
-
+    
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final captchaData = data['response']['captcha'];
@@ -60,7 +66,6 @@ class AuthService {
     }
   }
 
-  // Main login function orchestrating STEP 2 and 3
   Future<Map<String, dynamic>> login({
     required String username,
     required String password,
@@ -68,11 +73,9 @@ class AuthService {
     required String captchaHiddenValue,
     required String captchaImage,
   }) async {
-    // Get fresh crypto values for this session
     final dailyKey = _cryptoService.generateDailyKey();
     final encryptedLocalName = _cryptoService.generateEncryptedLocalName();
     
-    // --- STEP 2: Pre-token Check ---
     final randomValue = await _performPreTokenCheck(
       username: username,
       captchaSolution: captchaSolution,
@@ -82,7 +85,6 @@ class AuthService {
       encryptedLocalName: encryptedLocalName,
     );
 
-    // --- STEP 3: Generate Token ---
     final sessionData = await _generateToken(
       username: username,
       password: password,
@@ -109,7 +111,6 @@ class AuthService {
       print("\n--- 🏁 STEP 2: PRE-TOKEN CHECK ---");
     }
     
-    // Create pre-token payload
     final payload = {
       'username': username,
       'usertype': 'S',
@@ -120,14 +121,7 @@ class AuthService {
       }
     };
     final payloadJsonString = jsonEncode(payload);
-    if (kDebugMode) {
-      print("📦 Pre-token Payload (raw): $payloadJsonString");
-    }
-    
     final encryptedPayload = _cryptoService.encryptPayload(utf8.encode(payloadJsonString), dailyKey);
-    if (kDebugMode) {
-      print("🔒 Pre-token Payload (encrypted): $encryptedPayload");
-    }
 
     final uri = Uri.parse("$_baseUrl/token/pretoken-check");
     final headers = {
@@ -136,22 +130,11 @@ class AuthService {
       "content-type": "application/json",
       "localname": encryptedLocalName,
     };
-    
-    if (kDebugMode) {
-      print("🌐 Requesting URL: $uri");
-    }
-    if (kDebugMode) {
-      print("📋 Request Headers: $headers");
-    }
-    if (kDebugMode) {
-      print("📦 Request Body: $encryptedPayload");
-    }
 
     final response = await http.post(uri, headers: headers, body: jsonEncode(encryptedPayload));
+    
     if (kDebugMode) {
       print("🚦 Response Status Code: ${response.statusCode}");
-    }
-    if (kDebugMode) {
       print("📦 Response Body: ${response.body}");
     }
 
@@ -159,14 +142,34 @@ class AuthService {
       final data = jsonDecode(response.body);
       final randomValue = data['response']['random'] as String;
       if (kDebugMode) {
-        print("✅ Pre-token check successful. Got 'random' value: $randomValue");
+        print("✅ Pre-token check successful.");
       }
       return randomValue;
     } else {
-      if (kDebugMode) {
-        print("❌ FAILED pre-token check.");
+      // ✨ FIXED: Updated to parse the correct error structure from the API response.
+      if (response.statusCode == 404) {
+       
+          final responseBody = jsonDecode(response.body);
+          // Check the new error structure: status -> errors -> [list]
+          if (responseBody['status'] != null &&
+              responseBody['status']['errors'] is List &&
+              (responseBody['status']['errors'] as List).isNotEmpty) {
+                
+            final errorMessage = (responseBody['status']['errors'][0] ?? '').toString().toLowerCase();
+            if(kDebugMode){
+              print(errorMessage);
+            }
+            
+            if (errorMessage.contains('invalid login credential!')) {
+               throw InvalidCredentialsException('Invalid username. Please try again.');
+            }
+            if(errorMessage.contains('invalid captcha submitted..')){
+              throw InvalidCaptchaException("Invalid captcha. Please try again."); 
+            }
+          }
       }
-      throw Exception('Pre-token check failed');
+      // For all other errors, throw a generic exception
+      throw Exception('login failed with status: ${response.statusCode}');
     }
   }
 
@@ -177,6 +180,7 @@ class AuthService {
     required Uint8List dailyKey,
     required String encryptedLocalName,
   }) async {
+    // ... (no changes in this method)
     if (kDebugMode) {
       print("\n--- 🏁 STEP 3: GENERATE TOKEN ---");
     }
@@ -189,14 +193,7 @@ class AuthService {
       "random": randomValue
     };
     final payloadJsonString = jsonEncode(payload);
-    if (kDebugMode) {
-      print("📦 Generate-token Payload (raw): $payloadJsonString");
-    }
-
     final encryptedPayload = _cryptoService.encryptPayload(utf8.encode(payloadJsonString), dailyKey);
-    if (kDebugMode) {
-      print("🔒 Generate-token Payload (encrypted): $encryptedPayload");
-    }
 
     final uri = Uri.parse("$_baseUrl/token/generate-token1");
     final headers = {
@@ -205,26 +202,10 @@ class AuthService {
       "content-type": "application/json",
       "localname": encryptedLocalName,
     };
-
-    if (kDebugMode) {
-      print("🌐 Requesting URL: $uri");
-    }
-    if (kDebugMode) {
-      print("📋 Request Headers: $headers");
-    }
-    if (kDebugMode) {
-      print("📦 Request Body: $encryptedPayload");
-    }
-
+    
     final response = await http.post(uri, headers: headers, body: jsonEncode(encryptedPayload));
-    if (kDebugMode) {
-      print("🚦 Response Status Code: ${response.statusCode}");
-    }
-    if (kDebugMode) {
-      print("📦 Response Body: ${response.body}");
-    }
-
- if (response.statusCode == 200) {
+    
+    if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final regdata = data['response']['regdata'] as Map<String, dynamic>;
       
@@ -232,7 +213,6 @@ class AuthService {
         print("✅ Token generation successful.");
       }
 
-      // ✨ 4. Extract and save the user details
       try {
         final String name = regdata['name'];
         final String enrollmentNo = regdata['enrollmentno'];
@@ -248,7 +228,8 @@ class AuthService {
       if (kDebugMode) {
         print("❌ FAILED token generation.");
       }
-      throw Exception('Failed to generate token');
+        throw InvalidCredentialsException('Invalid Password. Please try again.');
     }
   }
 }
+

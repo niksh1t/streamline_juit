@@ -1,12 +1,14 @@
 // services/captcha_service.dart
+/*
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class CaptchaService {
   final String _baseUrl = "https://webportal.juit.ac.in:6011/StudentPortalAPI";
-
   final Map<String, String> _headers = {
-    "accept": "application/json, text/plain, */*",
+*/
+ //   "accept": "application/json, text/plain, */*",
+/*
     "authorization": "Bearer",
     "content-type": "application/json",
     "localname": "tHj7qqK+nhwJDFyvJqPWmGMNo86qnsfkWnXMOSRoiZw=",
@@ -28,4 +30,5 @@ class CaptchaService {
   // Future<Map<String, dynamic>> verifyCaptcha(String userInput, String hiddenValue) async {
   //   // Your POST request logic will go here
   // }
-}
+  }
+*/

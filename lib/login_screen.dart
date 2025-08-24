@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // ✨ 1. Import Provider
+import 'package:provider/provider.dart';
 import '/screens/captcha_screen.dart';
-import '../data/providers/captcha_provider.dart'; // ✨ 2. Import your provider
+import '../data/providers/captcha_provider.dart';
 import '../data/services/secure_storage_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,14 +16,24 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
+  
+  // ✨ 1. ADDED: State variable to track loading process
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadCredentials(); // ✨ 3. Load saved credentials when the screen starts
+    _loadCredentials();
+  }
+  
+  // ✨ 2. ADDED: Dispose controllers to prevent memory leaks
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
-  // ✨ 4. New function to load credentials if "Remember Me" was checked
   void _loadCredentials() async {
     final credentials = await _storageService.getCredentials();
     if (credentials['username'] != null && credentials['username']!.isNotEmpty) {
@@ -41,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12.0, 100, 12, 0),
-          child: SingleChildScrollView( // ✨ Added to prevent overflow on small screens
+          child: SingleChildScrollView(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -104,12 +114,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: _login,
+                  // ✨ 3. MODIFIED: Disable button and show indicator when loading
+                  onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  child: const Text('LOGIN'),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 3,
+                          ),
+                        )
+                      : const Text('LOGIN'),
                 ),
               ],
             ),
@@ -119,34 +139,33 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ✨ 5. Fully updated login logic
-  void _login() async {
-    final username = _usernameController.text.trim();
-    final password = _passwordController.text.trim();
 
-    // Basic validation
-    if (username.isEmpty || password.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please fill out all fields.')),
-        );
-        return;
-    }
+void _login() async {
+  final username = _usernameController.text.trim();
+  final password = _passwordController.text.trim();
 
-    // Save or delete credentials based on "Remember Me"
+  if (username.isEmpty || password.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please fill out all fields.')),
+    );
+    return;
+  }
+  
+  setState(() { _isLoading = true; });
+
+  try {
     if (_rememberMe) {
       await _storageService.saveCredentials(username, password);
     } else {
-      // Use deleteAll to clear token as well upon explicit uncheck
       await _storageService.deleteAll();
     }
     
-    // Trigger the initial captcha fetch *before* navigating.
-    // context.read is used to call a function on a provider without listening for changes.
-    context.read<CaptchaProvider>().fetchCaptcha();
+    // Fetch the captcha initially
+    await context.read<CaptchaProvider>().fetchCaptcha();
 
-    // Navigate to the CaptchaScreen and pass the credentials
     if (mounted) {
-      Navigator.of(context).push(
+      // AWAIT the result from CaptchaScreen
+      final result = await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => CaptchaScreen(
             username: username,
@@ -154,6 +173,27 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       );
+
+      // AFTER CaptchaScreen is popped, check if it sent back an error message
+      if (result != null && result is String) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load login screen: ${e.toString()}')),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() { _isLoading = false; });
     }
   }
+ }
 }

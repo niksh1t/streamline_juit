@@ -76,7 +76,13 @@ class CaptchaProvider with ChangeNotifier {
       notifyListeners();
       return true; // Signal success to the UI
 
-    } catch (e) {
+    }on InvalidCredentialsException {
+      // ✨ KEY CHANGE: Re-throw the specific exception for the UI to handle.
+      rethrow;
+    }on InvalidCaptchaException{
+      rethrow; 
+    }
+    catch (e) {
       // Login Failed. Fetch a new captcha.
       _errorMessage = 'Login failed. Please try the new captcha.';
       await fetchCaptcha(); // This will set isLoading to false and notify
