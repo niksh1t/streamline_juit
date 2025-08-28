@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../data/models/exam_schedule.dart'; // Ensure this path is correct
+import '../data/models/exam_model.dart'; // Ensure this path is correct
 
 class ExamCard extends StatelessWidget {
   final Exam exam;

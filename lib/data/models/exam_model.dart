@@ -7,8 +7,6 @@ class Exam {
   final String timeSlot;
   final String? roomCode;
   final String? seatNumber;
-  final String branch;
-  final String program;
 
   Exam({
     required this.subjectName,
@@ -17,8 +15,7 @@ class Exam {
     required this.timeSlot,
     this.roomCode,
     this.seatNumber,
-    required this.branch,
-    required this.program,
+
   });
 
   // Factory constructor to parse the JSON map into an Exam object
@@ -35,8 +32,6 @@ class Exam {
       timeSlot: json['datetimeupto'],
       roomCode: json['roomcode'],
       seatNumber: json['seatno'],
-      branch: json['branchcode'],
-      program: json['programcode'],
     );
   }
 }

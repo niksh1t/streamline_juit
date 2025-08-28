@@ -27,7 +27,7 @@ void main() {
   final prefsService = PreferencesService();
   final attendanceService = AttendanceService(CryptoService(), SecureStorageService(), PreferencesService());
   // --- 2. INSTANTIATE THE NEW EXAM SERVICE ---
-  final examService = ExamService();
+  final examService = ExamService(CryptoService(), PreferencesService(), SecureStorageService());
   final attendanceDetailsService = AttendanceDetailsService(CryptoService(), SecureStorageService(), PreferencesService());
   final courseCacheService= CourseCacheService();
 
@@ -69,6 +69,11 @@ void main() {
             return previousCourseDetailsProvider!;
           },
         ),
+        ChangeNotifierProvider(
+          create: (_) => ExamProvider(
+             examService,
+          )
+       )
       ],
       child: const StreamlineApp(),
     ),
