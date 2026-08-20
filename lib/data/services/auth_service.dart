@@ -195,7 +195,7 @@ class AuthService {
     final payloadJsonString = jsonEncode(payload);
     final encryptedPayload = _cryptoService.encryptPayload(utf8.encode(payloadJsonString), dailyKey);
 
-    final uri = Uri.parse("$_baseUrl/token/generate-token1");
+    final uri = Uri.parse("$_baseUrl/token/generatewebtoken");
     final headers = {
       "accept": "application/json, text/plain, */*",
       "authorization": "Bearer",
@@ -227,6 +227,7 @@ class AuthService {
     } else {
       if (kDebugMode) {
         print("❌ FAILED token generation.");
+        print(response.body); 
       }
         throw InvalidCredentialsException('Invalid Password. Please try again.');
     }

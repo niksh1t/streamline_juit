@@ -29,6 +29,7 @@ class AttendanceData {
 
 // 2. INDIVIDUAL SUBJECT MODEL
 class SubjectAttendance {
+  // ignore: non_constant_identifier_names
   final double LTpercantage;
   final String individualsubjectcode;
   final int slno;
@@ -40,6 +41,7 @@ class SubjectAttendance {
   final AttendanceComponent tutorialComponent;
 
   SubjectAttendance({
+    // ignore: non_constant_identifier_names
     required this.LTpercantage,
     required this.individualsubjectcode,
     required this.slno,

@@ -115,13 +115,13 @@ class _CaptchaScreenState extends State<CaptchaScreen> {
                       "Hey,",
                       style: theme.textTheme.displayLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onBackground,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
                     Text(
                       "are you a machine?",
                       style: theme.textTheme.headlineMedium?.copyWith(
-                        color: theme.colorScheme.onBackground.withOpacity(0.8),
+                        color: theme.colorScheme.onSurface.withOpacity(0.8),
                       ),
                     ),
                     const SizedBox(height: 48),

@@ -39,7 +39,7 @@ class AttendanceProvider with ChangeNotifier {
     try {
       final cachedData = await _prefsService.getCachedAttendanceData();
 
-      if (cachedData != null && DateTime.now().difference(cachedData.timestamp).inHours < 1) {
+      if (cachedData != null && DateTime.now().difference(cachedData.timestamp).inHours < 6) {
         if (kDebugMode) {
           print("✅ Using fresh cached attendance data. No API call needed.");
         }
